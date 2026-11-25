@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Calculator</title>
+<meta name="theme-color" content="#070312">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Calculator">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  @property --ang { syntax:'<angle>'; inherits:false; initial-value:0deg; }
+  :root { --ink:#f5f3ff; --v:#8b5cf6; --m:#d946ef; --c:#22d3ee; --g:#1de21d; --r:#ff2b2b; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; background:#070312; overflow:hidden; overscroll-behavior:none; }
+  body { font-family:-apple-system, "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif; color:var(--ink); -webkit-user-select:none; user-select:none; }
+
+  /* ===================== CALCULATOR ===================== */
+  #bg { position:fixed; inset:0; overflow:hidden; background:radial-gradient(120% 90% at 50% 0%, #1a0b44 0%, #070312 60%); }
+  .blob { position:absolute; border-radius:50%; filter:blur(70px); opacity:.75; will-change:transform; }
+  .b1 { width:60vmax; height:60vmax; left:-20vmax; top:-18vmax; background:radial-gradient(circle, #6d28d9, transparent 65%); animation:drift1 14s ease-in-out infinite alternate; }
+  .b2 { width:55vmax; height:55vmax; right:-18vmax; top:10vmax; background:radial-gradient(circle, #db2777, transparent 65%); animation:drift2 17s ease-in-out infinite alternate; }
+  .b3 { width:50vmax; height:50vmax; left:10vmax; bottom:-24vmax; background:radial-gradient(circle, #0891b2, transparent 65%); animation:drift3 19s ease-in-out infinite alternate; }
+  @keyframes drift1 { to { transform:translate(18vmax, 12vmax) scale(1.2); } }
+  @keyframes drift2 { to { transform:translate(-16vmax, 10vmax) scale(.85); } }
+  @keyframes drift3 { to { transform:translate(14vmax, -12vmax) scale(1.15); } }
+  .star { position:absolute; width:2px; height:2px; border-radius:50%; background:#fff; opacity:.5; animation:tw 3s ease-in-out infinite; }
+  @keyframes tw { 50% { opacity:.05; transform:scale(.6); } }
+
+  #calcView { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; perspective:1000px; }
+  #calc { position:relative; width:min(94vw, 390px); height:min(96dvh, 760px); display:flex; flex-direction:column; padding:18px 16px 16px;
+          border-radius:40px; background:linear-gradient(165deg, rgba(255,255,255,.13), rgba(255,255,255,.03));
+          backdrop-filter:blur(26px) saturate(1.5); -webkit-backdrop-filter:blur(26px) saturate(1.5);
+          box-shadow:0 40px 90px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.28); transition:transform .15s ease-out; }
+  #calc::before { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.6px; pointer-events:none;
+          background:conic-gradient(from var(--ang), #22d3ee, #8b5cf6, #d946ef, #fbbf24, #22d3ee);
+          -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude;
+          animation:spin 7s linear infinite; }
+  @keyframes spin { to { --ang:360deg; } }
+
+  .top { display:flex; justify-content:space-between; align-items:center; padding:2px 8px 0; font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.6); }
+  .top .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c); box-shadow:0 0 12px var(--c); margin-right:8px; }
+  .top svg { width:22px; height:22px; stroke:rgba(255,255,255,.7); fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+
+  #display { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end; padding:8px 10px 14px; min-height:0; overflow:hidden; }
+  #expr { font-size:22px; font-weight:300; color:rgba(255,255,255,.5); min-height:30px; max-width:100%; width:100%; overflow:hidden; white-space:nowrap; text-align:right; }
+  #result { font-size:72px; font-weight:200; letter-spacing:-.02em; line-height:1.05; max-width:100%; white-space:nowrap; overflow:hidden;
+            background:linear-gradient(180deg, #ffffff 25%, #c4b5fd); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 40px rgba(167,139,250,.35); }
+
+  #keys { display:grid; grid-template-columns:repeat(4, 1fr); gap:11px; }
+  #keys button { position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.11); border-radius:24px; height:clamp(52px, 9.2dvh, 74px);
+          font:inherit; font-size:28px; font-weight:400; color:#fff; cursor:pointer; background:rgba(255,255,255,.075);
+          box-shadow:inset 0 1px 0 rgba(255,255,255,.2), 0 10px 20px rgba(0,0,0,.28); transition:transform .08s, filter .15s; }
+  #keys button:active { transform:scale(.93); filter:brightness(1.25); }
+  #keys .fn { color:#67e8f9; background:rgba(34,211,238,.11); border-color:rgba(34,211,238,.25); }
+  #keys .op { background:linear-gradient(145deg, #8b5cf6, #d946ef); border-color:rgba(255,255,255,.3); box-shadow:0 10px 26px rgba(168,85,247,.5), inset 0 1px 0 rgba(255,255,255,.4); font-size:32px; }
+  #keys .eq { background:linear-gradient(120deg, #22d3ee, #3b82f6, #8b5cf6, #22d3ee); background-size:300% 100%; animation:flow 5s linear infinite;
+              border-color:rgba(255,255,255,.4); box-shadow:0 0 30px rgba(34,211,238,.6), inset 0 1px 0 rgba(255,255,255,.5); font-size:34px; }
+  @keyframes flow { to { background-position:300% 0; } }
+  #keys .eq::after { content:''; position:absolute; top:0; bottom:0; width:40%; left:-60%; background:linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform:skewX(-20deg); animation:shine 3.2s ease-in-out infinite; }
+  @keyframes shine { 0%, 55% { left:-60%; } 100% { left:140%; } }
+  .rip { position:absolute; border-radius:50%; background:rgba(255,255,255,.5); transform:scale(0); animation:rip .55s ease-out forwards; pointer-events:none; }
+  @keyframes rip { to { transform:scale(1); opacity:0; } }
+
+  @media (max-width: 520px) {
+    #calc { width:100vw; height:100dvh; border-radius:0; padding:max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom)); }
+    #calc::before { display:none; }
+  }
+
+  /* ===================== NOTIFICATION + PERMISSION ===================== */
+  #notif { position:fixed; z-index:40; top:10px; left:50%; width:min(94vw, 390px); transform:translate(-50%, -140%); transition:transform .5s cubic-bezier(.2,.9,.2,1);
+           display:flex; gap:12px; align-items:center; padding:12px 14px; border-radius:22px; color:#fff;
+           background:rgba(40,40,52,.82); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); box-shadow:0 14px 40px rgba(0,0,0,.5); }
+  #notif.show { transform:translate(-50%, 0); }
+  #notif img { width:40px; height:40px; border-radius:10px; flex:none; }
+  #notif .n1 { font-size:12px; opacity:.65; letter-spacing:.04em; display:flex; justify-content:space-between; }
+  #notif .n2 { font-size:14px; font-weight:600; margin-top:1px; }
+  #notif .n3 { font-size:13px; opacity:.85; margin-top:1px; line-height:1.25; }
+
+  #perm { position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.42); }
+  #perm.show { display:flex; }
+  #perm .box { display:none; animation:pop .25s ease-out; }
+  @keyframes pop { from { transform:scale(1.12); opacity:0; } }
+  #perm.m-ios .box.ios, #perm.m-and .box.and { display:block; }
+
+  .ios { width:270px; background:rgba(248,248,252,.95); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); border-radius:14px; text-align:center; color:#000; overflow:hidden;
+         font-family:-apple-system, "SF Pro Text", system-ui, sans-serif; }
+  .ios .t { padding:19px 16px 4px; font-size:17px; font-weight:600; line-height:1.25; }
+  .ios .d { padding:0 16px 18px; font-size:13px; line-height:1.3; }
+  .ios .b { display:flex; border-top:.5px solid rgba(60,60,67,.3); }
+  .ios .b button { flex:1; height:44px; background:none; border:0; font:inherit; font-size:17px; color:#007aff; cursor:pointer; }
+  .ios .b button + button { border-left:.5px solid rgba(60,60,67,.3); font-weight:600; }
+  .ios .b button:active { background:rgba(0,0,0,.08); }
+
+  .and { width:min(86vw, 312px); background:#2b2930; color:#e6e0e9; border-radius:28px; padding:24px 24px 18px; text-align:center; font-family:Roboto, system-ui, sans-serif; }
+  .and svg { width:26px; height:26px; fill:#d0bcff; }
+  .and .t { font-size:22px; line-height:1.3; margin:14px 0 22px; }
+  .and button { display:block; width:100%; height:46px; border-radius:23px; margin-top:8px; font:inherit; font-size:15px; font-weight:500; border:0; cursor:pointer; }
+  .and .al { background:#d0bcff; color:#381e72; }
+  .and .dn { background:transparent; color:#d0bcff; }
+
+  /* ===================== HACK VIEW ===================== */
+  #hackView { position:fixed; inset:0; z-index:10; display:none; background:#000; cursor:none; }
+  #code { position:absolute; left:0; right:0; top:0; bottom:48px; padding:5px 7px; overflow:hidden; color:var(--g);
+          font-family:"Courier New", Courier, "Lucida Console", monospace; font-size:12px; line-height:1.36; }
+  #code .ln { white-space:pre-wrap; word-break:break-all; min-height:1.36em; }
+  #code .ln.r { color:var(--r); }
+  #code .cur { display:inline-block; width:.58em; height:1.05em; vertical-align:-.15em; background:currentColor; animation:blink .5s steps(2) infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+  #bar { position:absolute; left:0; right:0; bottom:0; height:48px; padding:7px 9px 8px; border-top:1px solid #0d5a0d; background:#000;
+         font-family:"Courier New", Courier, monospace; font-size:12px; color:var(--g); }
+  #bar .row { display:flex; justify-content:space-between; margin-bottom:5px; }
+  #track { position:relative; height:9px; border:1px solid var(--g); }
+  #fill { height:100%; width:0; background:var(--g); box-shadow:0 0 8px var(--g); }
+  #track i { position:absolute; top:-1px; bottom:-1px; width:2px; background:#000; }
+  #track i:nth-child(2) { left:33.33%; } #track i:nth-child(3) { left:66.66%; }
+
+  /* ===================== GLITCH ===================== */
+  #glitch { position:fixed; inset:0; z-index:100; pointer-events:none; display:none; overflow:hidden; }
+  #glitch div { position:absolute; left:0; width:100%; }
+  body.gshake #calcView, body.gshake #hackView { animation:gs .11s steps(2) infinite;
+      filter:drop-shadow(6px 0 0 rgba(255,0,0,.8)) drop-shadow(-6px 0 0 rgba(0,255,255,.8)) saturate(2.4) contrast(1.4); }
+  @keyframes gs {
+    0% { transform:translate(0,0) skewX(0); }
+    25% { transform:translate(-14px,4px) skewX(5deg); }
+    50% { transform:translate(12px,-6px) skewX(-7deg) scaleY(1.03); }
+    75% { transform:translate(-6px,8px) skewX(3deg); }
+    100% { transform:translate(8px,-3px) skewX(-2deg); }
+  }
+</style>
+</head>
+<body>
+
+<div id="bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+
+<main id="calcView">
+  <div id="calc">
+    <div class="top">
+      <span><span class="dot"></span>Calculator</span>
+      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>
+    </div>
+    <div id="display"><div id="expr"></div><div id="result">0</div></div>
+    <div id="keys">
+      <button class="fn" data-k="AC" id="acBtn">AC</button>
+      <button class="fn" data-k="BS">⌫</button>
+      <button class="fn" data-k="%">%</button>
+      <button class="op" data-k="÷">÷</button>
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+      <button class="op" data-k="×">×</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+      <button class="op" data-k="−">−</button>
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+      <button class="op" data-k="+">+</button>
+      <button class="fn" data-k="±">±</button>
+      <button data-k="0">0</button>
+      <button data-k=".">.</button>
+      <button class="eq" data-k="=">=</button>
+    </div>
+  </div>
+</main>
+
+<div id="notif">
+  <img src="icon-192.png" alt="">
+  <div style="flex:1;min-width:0">
+    <div class="n1"><span>CALCULATOR</span><span>now</span></div>
+    <div class="n2">Stay in the loop</div>
+    <div class="n3">Allow notifications to save your calculation history and get daily tips.</div>
+  </div>
+</div>
+
+<div id="perm" class="m-ios">
+  <div class="box ios">
+    <div class="t">“Calculator” Would Like to Send You Notifications</div>
+    <div class="d">Notifications may include alerts, sounds, and icon badges. These can be configured in Settings.</div>
+    <div class="b"><button data-perm="deny">Don’t Allow</button><button data-perm="allow">Allow</button></div>
+  </div>
+  <div class="box and">
+    <svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11c0-3.1-1.6-5.6-4.5-6.3V4a1.5 1.5 0 0 0-3 0v.7C7.6 5.4 6 7.9 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+    <div class="t">Allow Calculator to send you notifications?</div>
+    <button class="al" data-perm="allow">Allow</button>
+    <button class="dn" data-perm="deny">Don’t allow</button>
+  </div>
+</div>
+
+<section id="hackView">
+  <div id="code"></div>
+  <div id="bar">
+    <div class="row"><span id="stepTxt">[1/3] COPYING ALL PASSWORDS</span><span><span id="pct">0</span>%</span></div>
+    <div id="track"><div id="fill"></div><i></i><i></i></div>
+  </div>
+</section>
+
+<div id="glitch"></div>
+
+<script>
+(() => {
+  /* ---------- SETTINGS (edit these) ---------- */
+  const START_DELAY = 1500;     // ms after the hack screen opens before code starts
+  const TYPE_MS     = 18000;    // how long the code is typed (15000 - 20000)
+  const TYPE_CPS    = 82;       // typing speed, characters per second (lower = slower)
+  const END_HOLD    = 1500;     // ms the final message stays before going back to the calculator
+  const GLITCH_MS   = 1000;     // length of each glitch transition
+  const STEPS = ["[1/3] COPYING ALL PASSWORDS", "[2/3] ACCESSING ALL APPS", "[3/3] EXTRACTING ALL FILES"];
+  const FINAL = [
+    ["g", "root@phone:~# access_status"],
+    ["g", "> ACCESS GRANTED"],
+    ["r", "> FULL ACCESS TO YOUR PHONE HAS BEEN ACQUIRED"],
+    ["g", "> ALL APPS ACCESSED ................ [DONE]"],
+    ["g", "> ALL PASSWORDS COPIED ............. [DONE]"],
+    ["r", "> ALL YOUR DATA HAS BEEN STOLEN"],
+  ];
+  /* ------------------------------------------- */
+
+  const $ = id => document.getElementById(id);
+  const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+  const pick = a => a[rnd(0, a.length - 1)];
+  const hex = n => Array.from({length:n}, () => rnd(0,15).toString(16)).join('').toUpperCase();
+  const ip = () => `${rnd(11,223)}.${rnd(0,255)}.${rnd(0,255)}.${rnd(1,254)}`;
+
+  /* =============== background stars =============== */
+  for (let i = 0; i < 36; i++) {
+    const s = document.createElement('div'); s.className = 'star';
+    s.style.cssText = `left:${rnd(0,100)}%;top:${rnd(0,100)}%;animation-delay:${(Math.random()*3).toFixed(2)}s;animation-duration:${rnd(2,5)}s`;
+    $('bg').append(s);
+  }
+
+  /* =============== CALCULATOR =============== */
+  let tokens = [], cur = '', justEval = false, prevExpr = '';
+  const OPS = ['+','−','×','÷'];
+  const isOp = t => OPS.includes(t);
+  const num = s => parseFloat(s);
+  const toStr = x => { if (!isFinite(x)) return 'Error'; let s = String(parseFloat(x.toFixed(10))); if (/e/i.test(s)) s = x.toPrecision(10); return s; };
+  const fmt = s => {
+    if (s === '' || s === 'Error') return s;
+    const neg = s[0] === '-'; const t = neg ? s.slice(1) : s; const [i, f] = t.split('.');
+    return (neg ? '−' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (f !== undefined ? '.' + f : '');
+  };
+  function evaluate(list) {          // list = [num, op, num, op, ...]
+    let a = list.slice();
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 1; i < a.length; i += 2) {
+        const op = a[i]; if (pass === 0 ? !(op === '×' || op === '÷') : false) continue;
+        if (pass === 0) { const x = num(a[i-1]), y = num(a[i+1]); const r = op === '×' ? x * y : (y === 0 ? NaN : x / y); a.splice(i-1, 3, toStr(r)); i -= 2; }
+      }
+    }
+    let r = num(a[0]);
+    for (let i = 1; i < a.length; i += 2) r = a[i] === '+' ? r + num(a[i+1]) : r - num(a[i+1]);
+    return r;
+  }
+  const complete = () => { const l = cur !== '' && cur !== '-' ? [...tokens, cur] : [...tokens]; if (isOp(l[l.length-1])) l.pop(); return l; };
+
+  function render() {
+    const l = complete();
+    let exprTxt = justEval ? prevExpr + ' =' : [...tokens.map(t => isOp(t) ? ' ' + t + ' ' : fmt(t)), fmt(cur)].join('');
+    let big;
+    if (justEval) big = fmt(cur);
+    else if (l.length >= 3) { const r = toStr(evaluate(l)); big = fmt(r); }
+    else big = cur !== '' ? fmt(cur) : (tokens.length ? fmt(tokens[tokens.length - 2] || '0') : '0');
+    const ex = $('expr'); ex.textContent = exprTxt;
+    while (ex.scrollWidth > ex.clientWidth && exprTxt.length > 4) { exprTxt = exprTxt.slice(2); ex.textContent = '…' + exprTxt; }
+    $('result').textContent = big;
+    const n = big.length; $('result').style.fontSize = (n <= 7 ? 72 : n <= 10 ? 56 : n <= 13 ? 44 : 34) + 'px';
+    $('acBtn').textContent = (tokens.length || cur !== '' || justEval) ? 'C' : 'AC';
+  }
+  function press(k) {
+    if (/^\d$/.test(k)) {
+      if (justEval) { tokens = []; cur = ''; justEval = false; }
+      if (cur === '0') cur = k; else if (cur === '-0') cur = '-' + k; else if (cur.replace(/[-.]/g, '').length < 15) cur += k;
+    } else if (k === '.') {
+      if (justEval) { tokens = []; cur = '0.'; justEval = false; }
+      else if (!cur.includes('.')) cur = (cur === '' || cur === '-') ? cur + '0.' : cur + '.';
+    } else if (isOp(k)) {
+      if (cur !== '' && cur !== '-') { tokens.push(cur); cur = ''; tokens.push(k); justEval = false; }
+      else if (tokens.length && isOp(tokens[tokens.length - 1])) tokens[tokens.length - 1] = k;
+    } else if (k === '±') {
+      if (justEval) justEval = false;
+      cur = cur === '' ? '-' : cur[0] === '-' ? cur.slice(1) : '-' + cur;
+    } else if (k === '%') {
+      if (cur !== '' && cur !== '-') cur = toStr(num(cur) / 100);
+    } else if (k === 'BS') {
+      if (justEval) { tokens = []; cur = ''; justEval = false; }
+      else if (cur !== '') cur = cur === '-' ? '' : cur.slice(0, -1);
+      else if (tokens.length) { tokens.pop(); cur = tokens.pop() || ''; }
+    } else if (k === 'AC') {
+      tokens = []; cur = ''; justEval = false; prevExpr = '';
+    } else if (k === '=') {
+      const l = complete();
+      if (l.length >= 3) {
+        prevExpr = l.map(t => isOp(t) ? ' ' + t + ' ' : fmt(t)).join('');
+        const r = evaluate(l); tokens = []; cur = toStr(r); justEval = true;
+        if (cur === 'Error') { setTimeout(() => { cur = ''; justEval = false; render(); }, 900); }
+      }
+    }
+    render();
+  }
+  $('keys').addEventListener('pointerdown', e => {
+    const b = e.target.closest('button'); if (!b || locked) return;
+    const r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2, rip = document.createElement('span');
+    rip.className = 'rip'; rip.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d/2}px;top:${e.clientY - r.top - d/2}px`;
+    b.append(rip); setTimeout(() => rip.remove(), 600);
+    try { navigator.vibrate && navigator.vibrate(8); } catch (_) {}
+    press(b.dataset.k);
+  });
+  addEventListener('keydown', e => {
+    if (locked) { e.preventDefault(); return; }
+    const m = { '*':'×', 'x':'×', 'X':'×', '/':'÷', '-':'−', '+':'+', 'Enter':'=', '=':'=', 'Backspace':'BS', 'Escape':'AC', '%':'%', '.':'.', ',':'.' };
+    const k = /^\d$/.test(e.key) ? e.key : m[e.key]; if (k) { e.preventDefault(); press(k); }
+  });
+  // subtle 3D tilt (desktop only)
+  if (matchMedia('(hover:hover) and (min-width:521px)').matches) {
+    addEventListener('pointermove', e => {
+      if (locked) return;
+      const x = (e.clientX / innerWidth - .5), y = (e.clientY / innerHeight - .5);
+      $('calc').style.transform = `rotateY(${x * 7}deg) rotateX(${-y * 6}deg)`;
+    });
+  }
+  render();
+
+  /* =============== GLITCH TRANSITION =============== */
+  function glitch(ms, midFn) {
+    const ov = $('glitch'); ov.style.display = 'block'; document.body.classList.add('gshake');
+    const t0 = performance.now(); let swapped = false;
+    const iv = setInterval(() => {
+      const t = performance.now() - t0, k = Math.sin(Math.min(1, t / ms) * Math.PI);   // 0 -> 1 -> 0 intensity
+      ov.innerHTML = '';
+      const n = Math.round(4 + k * 16);
+      for (let i = 0; i < n; i++) {
+        const d = document.createElement('div');
+        const h = rnd(1, 2 + Math.round(k * 8));
+        d.style.cssText = `top:${rnd(0,100)}%;height:${h}%;background:${pick(['#00ff41','#ff2b2b','#2f8cff','#000','#fff','#00ff41'])};` +
+          `opacity:${(.2 + Math.random() * .5).toFixed(2)};mix-blend-mode:${pick(['screen','difference','normal','exclusion'])};transform:translateX(${rnd(-60, 60)}px)`;
+        ov.append(d);
+      }
+      if (Math.random() < .35 * k) { const f = document.createElement('div'); f.style.cssText = `top:0;height:100%;background:#000;opacity:${(.5 + Math.random()*.5).toFixed(2)}`; ov.append(f); }
+      if (!swapped && t > ms * .45) { swapped = true; midFn(); }
+      if (t > ms) { clearInterval(iv); ov.style.display = 'none'; ov.innerHTML = ''; document.body.classList.remove('gshake'); }
+    }, 45);
+  }
+
+  /* =============== FAKE NOTIFICATION + PERMISSION =============== */
+  const perm = $('perm');
+  perm.className = /Android/i.test(navigator.userAgent) ? 'm-and' : 'm-ios';
+  setTimeout(() => $('notif').classList.add('show'), 700);
+  setTimeout(() => $('notif').classList.remove('show'), 3400);
+  setTimeout(() => perm.classList.add('show'), 1500);
+  perm.addEventListener('click', e => { if (e.target.closest('[data-perm]')) startHack(); });
+
+  /* =============== lock-down helpers (best effort) =============== */
+  let locked = false;
+  function goFullscreen() {
+    const el = document.documentElement;
+    try { const p = (el.requestFullscreen && el.requestFullscreen({ navigationUI: 'hide' })) || (el.webkitRequestFullscreen && el.webkitRequestFullscreen()); if (p && p.catch) p.catch(() => {}); } catch (_) {}
+    try { navigator.keyboard && navigator.keyboard.lock && navigator.keyboard.lock().catch(() => {}); } catch (_) {}
+  }
+  function unlock() {
+    locked = false;
+    try { navigator.keyboard && navigator.keyboard.unlock && navigator.keyboard.unlock(); } catch (_) {}
+    try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
+  }
+  addEventListener('beforeunload', e => { if (locked) { e.preventDefault(); e.returnValue = ''; } });
+  addEventListener('contextmenu', e => { if (locked) e.preventDefault(); });
+  addEventListener('touchmove', e => { if (locked) e.preventDefault(); }, { passive: false });
+
+  /* =============== HACK SCREEN =============== */
+  const code = $('code');
+  const N = () => rnd(40, 960).toLocaleString('en-US');
+  // [colour, text]  -- g = green code, r = red warning line
+  const SCRIPT = () => [
+    ['g', '// ALL DATA CHECKING TO ACCESS'],
+    ['g', '#include <phone/access.h>'],
+    ['g', '#include <steal/all_data.h>'],
+    ['g', ''],
+    ['g', 'static int run_full_access(struct phone *p)'],
+    ['g', '{'],
+    ['g', '    int ret = 0, n_pass, n_files, n_msgs;'],
+    ['g', ''],
+    ['r', '    [!] ALL DATA CHECKING TO ACCESS ...'],
+    ['g', `    ret = bypass_lockscreen(p, 0x${hex(8)});`],
+    ['g', '    if (ret) goto root_shell;'],
+    ['r', '    [!] LOCKSCREEN BYPASSED - ACCESS GRANTED'],
+    ['g', ''],
+    ['g', '    /* STEALING ALL SAVED PASSWORDS */'],
+    ['g', '    n_pass = copy_all_passwords(p, &vault);'],
+    ['g', '    ret |= copy_browser_logins(p, &vault);'],
+    ['r', `    [!] ${N()} PASSWORDS COPIED FROM YOUR PHONE`],
+    ['g', ''],
+    ['g', '    /* COPYING ALL CONTACTS AND MESSAGES */'],
+    ['g', '    ret |= dump_contacts(p, "/sdcard/contacts.db");'],
+    ['g', '    n_msgs = dump_sms(p, "/data/sms/mmssms.db");'],
+    ['g', '    ret |= dump_call_log(p, &vault);'],
+    ['r', `    [!] ${N()} CONTACTS, ${N()} MESSAGES COPIED`],
+    ['g', ''],
+    ['g', '    /* ALL DATA CHECKING TO ACCESS */'],
+    ['g', '    ret |= hook_whatsapp(p, WA_CHATS | WA_MEDIA);'],
+    ['g', '    ret |= hook_facebook(p, FB_TOKEN);'],
+    ['g', '    ret |= hook_instagram(p, IG_SESSION);'],
+    ['g', '    ret |= hook_gmail(p, MAIL_ALL);'],
+    ['r', '    [!] ALL SOCIAL ACCOUNTS ACCESSED'],
+    ['g', ''],
+    ['g', '    n_files = copy_gallery(p, "/sdcard/DCIM");'],
+    ['r', `    [!] ${N()} PHOTOS AND VIDEOS COPIED`],
+    ['g', '    ret |= grab_bank_sessions(p, &vault);'],
+    ['r', '    [!] BANKING APP SESSIONS CAPTURED'],
+    ['g', ''],
+    ['g', '    ret |= camera_on(p, CAM_FRONT | CAM_BACK);'],
+    ['g', '    ret |= mic_on(p, REC_ALWAYS);'],
+    ['g', '    ret |= get_gps(p, &lat, &lon);'],
+    ['r', '    [!] CAMERA, MICROPHONE, GPS: ACCESS GRANTED'],
+    ['g', ''],
+    ['g', '    /* UPLOADING ALL DATA TO REMOTE SERVER */'],
+    ['g', `    ret = upload(&vault, "${ip()}", 4444);`],
+    ['r', `    [!] UPLOADING YOUR DATA ... ${rnd(12, 97)}%`],
+    ['g', '    if (ret != 0)'],
+    ['g', '        return retry_upload(p, &vault);'],
+    ['g', ''],
+    ['g', '    return 0;'],
+    ['g', '}'],
+    ['g', ''],
+    ['g', '// ALL DATA CHECKING TO ACCESS'],
+    ['g', 'int scan_all_apps(struct phone *p)'],
+    ['g', '{'],
+    ['g', '    for (i = 0; i < p->n_apps; i++) {'],
+    ['g', '        app = &p->apps[i];'],
+    ['g', '        read_app_data(app, &vault);'],
+    ['r', '        [!] ACCESSING: ALL APP DATA'],
+    ['g', '    }'],
+    ['g', '    return 0;'],
+    ['g', '}'],
+  ];
+
+  const T = { queue: [], cur: null, pause: 0, acc: 0, last: 0, cps: TYPE_CPS, el: null };
+  function startLine() {
+    const [cls, text] = T.queue.shift();
+    const el = document.createElement('div'); el.className = 'ln' + (cls === 'r' ? ' r' : '');
+    const tn = document.createTextNode(''); const c = document.createElement('span'); c.className = 'cur';
+    el.append(tn, c); code.append(el);
+    T.cur = { el, tn, c, text, i: 0 };
+    if (!text.length) { finishLine(); T.pause = performance.now() + 60; }
+  }
+  function finishLine() { const c = T.cur; c.c.remove(); if (!c.text.length) c.el.innerHTML = '&nbsp;'; T.cur = null; }
+  function typeTick(now) {
+    const dt = Math.min(80, now - T.last); T.last = now;
+    if (now < T.pause) return;
+    T.acc += dt * T.cps / 1000;
+    while (T.acc >= 1) {
+      if (!T.cur) { if (!T.queue.length) return; startLine(); if (!T.cur) continue; }
+      const c = T.cur; T.acc -= 1;
+      c.tn.nodeValue += c.text[c.i++];
+      if (c.i >= c.text.length) { finishLine(); T.pause = now + rnd(70, 190); T.acc = 0; break; }
+    }
+    if (code.scrollHeight > code.clientHeight) code.scrollTop = code.scrollHeight;
+  }
+
+  let rafId = 0, phase = 'idle', typeStart = 0;
+  function setProgress(t01) {
+    const step = Math.min(2, Math.floor(t01 * 3)), local = t01 * 3 - step;
+    const p = Math.min(100, Math.floor(((step + Math.min(1, local / 0.82)) / 3) * 100));   // each step loads, then waits a moment
+    $('fill').style.width = p + '%'; $('pct').textContent = p; $('stepTxt').textContent = STEPS[step];
+  }
+  function loop(now) {
+    if (phase === 'typing') {
+      typeTick(now);
+      const t01 = Math.min(1, (now - typeStart) / TYPE_MS);
+      setProgress(t01);
+      if (t01 >= 1) { phase = 'final'; showFinal(); }
+    } else if (phase === 'final') typeTick(now);
+    rafId = requestAnimationFrame(loop);
+  }
+  function showFinal() {
+    $('fill').style.width = '100%'; $('pct').textContent = '100'; $('stepTxt').textContent = 'ALL STEPS COMPLETE';
+    if (T.cur) { T.cur.c.remove(); T.cur = null; }
+    code.innerHTML = ''; code.scrollTop = 0;               // wipe everything, message starts on the very first line
+    T.queue = FINAL.map(x => x.slice()); T.cps = 60; T.pause = performance.now() + 250; T.acc = 0;
+    const watch = setInterval(() => {
+      if (!T.queue.length && !T.cur) { clearInterval(watch); setTimeout(backToCalc, END_HOLD); }
+    }, 100);
+  }
+  function backToCalc() {
+    glitch(GLITCH_MS, () => {
+      cancelAnimationFrame(rafId); phase = 'done';
+      $('hackView').style.display = 'none'; $('calcView').style.display = 'flex'; $('bg').style.display = 'block';
+      unlock(); render();
+    });
+  }
+  let started = false;
+  function startHack() {
+    if (started) return; started = true;
+    perm.classList.remove('show'); $('notif').classList.remove('show');
+    goFullscreen(); locked = true;
+    glitch(GLITCH_MS, () => {
+      $('calcView').style.display = 'none'; $('bg').style.display = 'none'; $('hackView').style.display = 'block';
+      code.innerHTML = ''; $('fill').style.width = '0'; $('pct').textContent = '0'; $('stepTxt').textContent = STEPS[0];
+      T.queue = SCRIPT(); T.cps = TYPE_CPS; T.cur = null; T.acc = 0; T.pause = 0;
+      setTimeout(() => { typeStart = performance.now(); T.last = typeStart; phase = 'typing'; }, START_DELAY);
+      rafId = requestAnimationFrame(loop);
+    });
+  }
+})();
+</script>
+</body>
+</html>
